@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pong</title>
+
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="600" height="400"></canvas>
+<h1>
+  <p> Lastest Winner: </p> <p id="dub"> [Winner] </p>
+
+</h1>
+
+<script>
+
+  //Canvas API: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D
+
+  const canvas = document.getElementById('myCanvas');
+  const ctx = canvas.getContext('2d');
+  const paddleWidth = 10;
+  const paddleHeight = 100;
+
+  let upArrowPressed = false;
+  let downArrowPressed = false;
+  let gameover = false;
+
+  let winner1;
+  let winner2;
+
+  const user = {
+    x: 10,
+    y: canvas.height / 2 - paddleHeight / 2,
+    width: paddleWidth,
+    height: paddleHeight,
+    score: 0
+  };
+
+  const cpu = {
+    x: canvas.width - (paddleWidth + 10),
+    y: canvas.height / 2 - paddleHeight / 2,
+    width: paddleWidth,
+    height: paddleHeight,
+    score: 0
+  };
+
+  const ball = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    radius: 7,
+    speed: 7,
+    velocityX: 5,
+    velocityY: 5,
+  };
+
+  function drawPaddle(x, y, width, height, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, width, height);
+  }
+
+  function drawBall(x, y, radius, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  window.addEventListener('keydown', keyDownHandler);
+  window.addEventListener('keyup', keyUpHandler);
+
+  function keyDownHandler(event) {
+    if(event.keyCode == 38) {
+      upArrowPressed = true;
+    }
+    if(event.keyCode == 40) {
+      downArrowPressed = true;
+    }
+  }
+
+  function keyUpHandler(event) {
+    if(event.keyCode == 38) {
+      upArrowPressed = false;
+    }
+    if(event.keyCode == 40) {
+      downArrowPressed = false;
+    }
+  }
+
+  function reset() {
+    ball.x = canvas.width / 2;
+    ball.y = canvas.height / 2;
+    ball.speed = 7;
+
+    ball.velocityX = -ball.velocityX;
+    ball.velocityY = -ball.velocityY;
+  }
+
+  function collisionDetect(player, ball) {
+    player.top = player.y;
+    player.right = player.x + player.width;
+    player.bottom = player.y + player.height;
+    player.left = player.x;
+
+    ball.top = ball.y - ball.radius;
+    ball.right = ball.x + ball.radius;
+    ball.bottom = ball.y + ball.radius;
+    ball.left = ball.x - ball.radius;
+
+    return ball.left < player.right && ball.top < player.bottom && ball.right > player.left && ball.bottom > player.top;
+  }
+
+
+  function update() {
+
+    if (upArrowPressed && user.y > 0) {
+      user.y -= 10;
+    } else if (downArrowPressed && (user.y < canvas.height - user.height)) {
+      user.y += 10;
+    }
+
+    if (ball.y + ball.radius >= canvas.height || ball.y - ball.radius <= 0) {
+      ball.velocityY = -ball.velocityY;
+    }
+
+    if (ball.x + ball.radius >= canvas.width) {
+      user.score += 1;
+      reset();
+    }
+
+    if (ball.x - ball.radius <= 0) {
+      cpu.score += 1;
+      reset();
+    }
+
+    ball.x += ball.velocityX;
+    ball.y += ball.velocityY;
+
+    setTimeout(function(){
+      cpu.y += ((ball.y - (cpu.y + cpu.height / 2))) * 0.09;
+    }, 8);
+
+    let player = (ball.x < canvas.width / 2) ? user : cpu;
+
+    if (collisionDetect(player, ball)) {
+      let angle = 0;
+
+      if (ball.y < (player.y + player.height / 2)) {
+        angle = -1 * Math.PI / 4;
+      } else if (ball.y > (player.y + player.height / 2)) {
+        angle = Math.PI / 4;
+      }
+
+      ball.velocityX = (player === user ? 1 : -1) * ball.speed * Math.cos(angle);
+      ball.velocityY = ball.speed * Math.sin(angle);
+      ball.speed += 0.2;
+    }
+  }
+
+  function gameLoop() {
+
+    if(cpu.score > 10) {
+      gameover = true
+    }
+    else if(user.score > 10) {
+      gameover = true
+    }
+
+    if(gameover == false) {
+      update();
+      ctx.fillStyle = "lightblue";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = 'black';
+      ctx.font = '35px sans-serif';
+      ctx.fillText(user.score, canvas.width / 4,canvas.height / 6);
+      ctx.fillText(cpu.score, canvas.width * (3/4), canvas.height / 6);
+
+      drawPaddle(user.x, user.y, user.width, user.height, "green");
+      drawPaddle(cpu.x, cpu.y, cpu.width, cpu.height, "red");
+      drawBall(ball.x, ball.y, ball.radius, "black");
+
+    }
+    else if(gameover == true) {
+      winner1 = Math.max(cpu.score,user.score)
+
+      if(winner1 == cpu.score) {
+        winner2 = 'CPU'
+      }
+      else {
+        winner2 = 'Player'
+      }
+
+      setTimeout(function(){
+        gameover = false
+        document.getElementById("dub").innerHTML = winner2;
+        user.score = 0
+        cpu.score = 0
+        update()
+        reset()
+        gameLoop()
+      }, 500);
+
+    }
+  }
+
+  setInterval(gameLoop, 1000 / 60);
+</script>
+
+</body>
+</html>
